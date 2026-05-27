@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Bats Amore — Lineup Maker</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header>
+    <h1>Bats Amore</h1>
+    <p class="tagline">Softball lineup maker</p>
+  </header>
+
+  <main>
+    <section id="upload-section">
+      <h2>Upload roster CSV</h2>
+      <p class="hint">
+        Expects the Google Form export with columns:
+        <em>Timestamp, Name, Attendance, Position preferences, Positions to avoid, …</em>
+        Only columns B–E are used.
+      </p>
+      <label class="file-button">
+        <input type="file" id="csv-input" accept=".csv,text/csv" />
+        Choose CSV file
+      </label>
+      <span id="upload-status" class="status"></span>
+    </section>
+
+    <section id="gender-section" hidden>
+      <h2>Set gender for each player</h2>
+      <p class="hint">Used to balance the batting order (M vs F/NB).</p>
+      <div id="gender-list"></div>
+      <button id="save-roster" class="primary">Save roster</button>
+    </section>
+
+    <section id="roster-section" hidden>
+      <div class="section-head">
+        <h2>Roster <span id="roster-count" class="count"></span></h2>
+        <div class="roster-actions">
+          <button id="add-player-btn">+ Add player</button>
+          <button id="reupload">Upload new CSV</button>
+          <button id="clear-roster" class="danger">Clear roster</button>
+        </div>
+      </div>
+
+      <form id="add-player-form" class="add-form" hidden>
+        <input type="text" id="ap-name" placeholder="Name" required />
+        <div class="pills" data-field="gender">
+          <button type="button" class="pill" data-g="M">M</button>
+          <button type="button" class="pill" data-g="F">F/NB</button>
+        </div>
+        <select id="ap-priority">
+          <option value="">Priority (optional)</option>
+          <option value="1">1 — low</option>
+          <option value="2">2</option>
+          <option value="3">3 — medium</option>
+          <option value="4">4</option>
+          <option value="5">5 — high</option>
+        </select>
+        <input type="text" id="ap-prefs" placeholder="Preferences (e.g. P, SS)" />
+        <input type="text" id="ap-avoid" placeholder="Avoid (e.g. C)" />
+        <div class="add-form-actions">
+          <button type="submit" class="primary">Add</button>
+          <button type="button" id="cancel-add">Cancel</button>
+        </div>
+      </form>
+
+      <table id="roster-table">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Gender</th>
+            <th>Priority</th>
+            <th>Attending</th>
+            <th>Preferences</th>
+            <th>Avoid</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+
+      <div class="cta-row">
+        <button id="open-lineup" class="primary">Build lineup →</button>
+      </div>
+    </section>
+
+    <section id="lineup-section" hidden>
+      <div class="section-head">
+        <h2>Build lineup</h2>
+        <button id="close-lineup">← Back to roster</button>
+      </div>
+
+      <div class="lineup-step">
+        <h3>Game info</h3>
+        <div class="game-info-row">
+          <label>Date <input type="date" id="game-date" /></label>
+          <label>Opponent <input type="text" id="game-opponent" placeholder="e.g. SPUDS" /></label>
+          <label>
+            Location
+            <select id="game-location">
+              <option value="away">Away — we HIT first</option>
+              <option value="home">Home — we FIELD first</option>
+            </select>
+          </label>
+          <button id="print-lineup" class="primary">Print lineup</button>
+        </div>
+      </div>
+
+      <div class="lineup-step">
+        <h3>Who's playing?</h3>
+        <div id="attending-list" class="attending-grid"></div>
+        <div id="attending-summary" class="summary"></div>
+      </div>
+
+      <div class="lineup-step">
+        <h3>Batting order</h3>
+        <p class="hint">Two lanes — read across or alternate when calling order.</p>
+        <button id="shuffle-batting">Shuffle batting order</button>
+        <div class="batting-grid">
+          <div>
+            <h4>M</h4>
+            <ol id="batting-m" class="batting-col"></ol>
+          </div>
+          <div>
+            <h4>F/NB</h4>
+            <ol id="batting-f" class="batting-col"></ol>
+          </div>
+        </div>
+      </div>
+
+      <div class="lineup-step">
+        <h3>Field positions</h3>
+        <p class="hint">
+          10 positions. Uncheck a column header to drop that position for the
+          whole game (e.g. play short with no RF). Each inning must have equal
+          M and F/NB on the field.
+        </p>
+        <div class="positions-actions">
+          <label class="inline-field">
+            Permanent pitcher:
+            <select id="pitcher-select">
+              <option value="">— rotate —</option>
+            </select>
+          </label>
+          <button id="auto-fill-positions" class="primary">Auto-fill all innings</button>
+          <button id="clear-positions">Clear all</button>
+        </div>
+        <div class="legend">
+          <span class="swatch pref"></span> preferred
+          <span class="swatch avoid"></span> avoid
+          <span class="swatch neutral"></span> neutral
+        </div>
+        <div id="positions-wrap" class="positions-wrap"></div>
+      </div>
+    </section>
+  </main>
+
+  <div id="print-view" aria-hidden="true">
+    <section class="print-page">
+      <h1 class="print-title"></h1>
+      <h2 class="print-h2">Roster</h2>
+      <table id="print-roster">
+        <thead>
+          <tr><th>M</th><th>F/NB</th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+      <div class="print-spacer"></div>
+      <h2 class="print-h2">Batting Order (M alternating with F/NB)</h2>
+      <table id="print-batting">
+        <tbody></tbody>
+      </table>
+    </section>
+    <section class="print-page">
+      <h1 class="print-title"></h1>
+      <table id="print-positions">
+        <thead>
+          <tr>
+            <th></th>
+            <th>1st</th><th>2nd</th><th>3rd</th><th>4th</th>
+            <th>5th</th><th>6th</th><th>7th</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+      <div class="print-spacer"></div>
+      <p id="print-location"></p>
+      <table id="print-score">
+        <tbody>
+          <tr><th>Bats</th><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+          <tr><th id="print-opp-label"></th><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+        </tbody>
+      </table>
+    </section>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
