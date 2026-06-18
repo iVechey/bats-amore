@@ -836,13 +836,58 @@ function fillBattingList(ol, gender) {
   for (const n of unique) {
     const li = document.createElement("li");
     li.textContent = n + (n === pitcher ? " ⚾" : "");
+    li.dataset.name = n;
+    const isPitcher = n === pitcher;
+    li.draggable = !isPitcher;
+    if (isPitcher) li.classList.add("locked-row");
     if (ceilSet.has(n)) {
       if (firstCeil) {
         li.classList.add("divider-above");
         firstCeil = false;
       }
     }
+    attachBattingItemDrag(li);
     ol.appendChild(li);
+  }
+}
+
+let battingDragging = null;
+
+function attachBattingItemDrag(li) {
+  if (!li.draggable) return;
+  li.addEventListener("dragstart", (e) => {
+    battingDragging = li;
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("text/plain", li.dataset.name || "");
+    setTimeout(() => li.classList.add("dragging"), 0);
+  });
+  li.addEventListener("dragend", () => {
+    if (battingDragging) battingDragging.classList.remove("dragging");
+    battingDragging = null;
+  });
+  li.addEventListener("dragover", (e) => {
+    if (!battingDragging || battingDragging === li) return;
+    if (battingDragging.parentElement !== li.parentElement) return;
+    if (li.classList.contains("locked-row")) return; // never insert past pitcher
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    const rect = li.getBoundingClientRect();
+    const isAfter = e.clientY > rect.top + rect.height / 2;
+    if (isAfter) li.after(battingDragging);
+    else li.before(battingDragging);
+  });
+}
+
+function attachBattingColumnDrop() {
+  for (const [ol, gender] of [[els.battingM, "M"], [els.battingF, "F"]]) {
+    ol.addEventListener("dragover", (e) => e.preventDefault());
+    ol.addEventListener("drop", (e) => {
+      e.preventDefault();
+      const newOrder = Array.from(ol.querySelectorAll("li")).map((li) => li.dataset.name);
+      lineup.battingOrder[gender] = newOrder;
+      saveLineupToStorage();
+      renderLineupAll();
+    });
   }
 }
 
@@ -1208,6 +1253,7 @@ els.printLineup.addEventListener("click", () => {
 });
 
 setupAddForm();
+attachBattingColumnDrop();
 
 // ---------- boot ----------
 const savedRoster = loadRoster();
